@@ -52,13 +52,24 @@ typedef struct PACKED {
 static void print_banner(void)
 {
     vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    // Utilisation des codes hexadécimaux CP437 pour les bordures
+    printk("\xC9\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBB\n");
+    printk("\xBA                        KFS-1 - Kernel From Scratch                         \xBA\n");
+    printk("\xBA                    Grub + Boot + Screen  |  42 Project                     \xBA\n");
+    printk("\xC8\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xCD\xBC\n");
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+}
+/*
+static void print_banner(void)
+{
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
     printk("╔════════════════════════════════════════════════════════════════════════════╗\n");
-    printk("║                        KFS-1 - Kernel From Scratch                        ║\n");
-    printk("║                    Grub + Boot + Screen  |  42 Project                    ║\n");
+    printk("║                        KFS-1 - Kernel From Scratch                         ║\n");
+    printk("║                    Grub + Boot + Screen  |  42 Project                     ║\n");
     printk("╚════════════════════════════════════════════════════════════════════════════╝\n");
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
 }
-
+*/
 /* =============================================================================
  * print_memory_info - Afficher les informations mémoire fournies par GRUB
  * ============================================================================= */
@@ -163,6 +174,15 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
      * ========================================================================= */
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
     printk("\n");
+    printk("                                 \xDB\xDB   \xDB\xDB\xDB\xDB\xDB \n");
+    printk("                                \xDB\xDB        \xDB\xDB\n");
+    printk("                               \xDB\xDB\xDB\xDB\xDB\xDB \xDB\xDB\xDB\xDB\n");
+    printk("                                  \xDB\xDB  \xDB\xDB\n");
+    printk("                                  \xDB\xDB  \xDB\xDB\xDB\xDB\xDB\xDB\n");
+    printk("\n");
+    /*
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    printk("\n");
     printk("    ██╗  ██╗██████╗ \n");
     printk("    ██║  ██║╚════██╗\n");
     printk("    ███████║ █████╔╝\n");
@@ -171,13 +191,13 @@ void kernel_main(uint32_t magic, multiboot_info_t *mbi)
     printk("         ╚═╝╚══════╝\n");
     printk("\n");
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-
+    */
     /* Raccourcis TTY */
     print_tty_hint();
 
     /* Séparateur */
     vga_set_color(VGA_COLOR_DARK_GREY, VGA_COLOR_BLACK);
-    printk("────────────────────────────────────────────────────────────────────────────\n");
+    printk("______________________________________________________________________________\n");
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
 
     /* Prompt */

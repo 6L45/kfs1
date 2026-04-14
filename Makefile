@@ -147,19 +147,26 @@ all: $(ISO)
 # --- Créer l'ISO bootable ---
 $(ISO): $(KERNEL)
 	@echo "$(YELLOW)[ISO]$(RESET) Creating bootable ISO..."
+	@if ! command -v mformat >/dev/null 2>&1; then \
+		echo "$(YELLOW)[ISO]$(RESET) Missing dependency: mformat (install package: mtools)"; \
+		exit 1; \
+	fi
+	@if [ ! -d /usr/lib/grub/i386-pc ]; then \
+		echo "$(YELLOW)[ISO]$(RESET) Missing GRUB BIOS modules: /usr/lib/grub/i386-pc"; \
+		echo "$(YELLOW)[ISO]$(RESET) Install package: grub-pc-bin"; \
+		exit 1; \
+	fi
 	@mkdir -p $(ISO_DIR)/boot/grub
 	@cp $(KERNEL) $(ISO_DIR)/boot/$(KERNEL)
 	@cp $(GRUB_DIR)/grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
-	@$(GRUB_MKRESCUE) -o $(ISO) $(ISO_DIR) 2>/dev/null || \
-		(echo "grub-mkrescue not found, creating raw image..." && \
-		 cp $(KERNEL) $(ISO))
-	@echo "$(GREEN)[ISO]$(RESET) $(ISO) created ($(shell du -h $(ISO) | cut -f1))"
+	@$(GRUB_MKRESCUE) -o $(ISO) $(ISO_DIR)
+	@echo "$(GREEN)[ISO]$(RESET) $(ISO) created ($$(du -h $(ISO) | cut -f1))"
 
 # --- Linker: lier tous les objets en kernel.bin ---
 $(KERNEL): $(ALL_OBJECTS) linker.ld
 	@echo "$(YELLOW)[LD]$(RESET)  Linking $@..."
 	@$(LD) $(LDFLAGS) -o $@ $(ALL_OBJECTS)
-	@echo "$(GREEN)[LD]$(RESET)  $@ ($(shell du -h $@ | cut -f1))"
+	@echo "$(GREEN)[LD]$(RESET)  $@ ($$(du -h $@ | cut -f1))"
 
 # --- Compiler les fichiers ASM ---
 $(OBJ_DIR)/%.o: %.asm
@@ -180,13 +187,20 @@ $(OBJ_DIR)/%.o: %.c
 # Lancer dans QEMU (KVM si disponible, sinon TCG software)
 .PHONY: run
 run: $(ISO)
-	@echo "$(GREEN)[QEMU]$(RESET) Starting KFS-1..."
-	@if [ -c /dev/kvm ] && [ -r /dev/kvm ]; then \
-		$(QEMU) -cdrom $(ISO) -enable-kvm -m 128M -serial stdio 2>/dev/null || \
-		$(QEMU) -cdrom $(ISO) -m 128M; \
+	@echo "$(GREEN)[QEMU]$(RESET) Starting KFS-1 (ISO boot)..."
+	@if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then \
+		echo "$(CYAN)[QEMU]$(RESET) KVM enabled"; \
+		$(QEMU) -cdrom $(ISO) -enable-kvm -m 128M -boot order=d -net none || \
+		$(QEMU) -cdrom $(ISO) -m 128M -boot order=d -net none; \
 	else \
-		$(QEMU) -cdrom $(ISO) -m 128M; \
+		echo "$(YELLOW)[QEMU]$(RESET) KVM unavailable, using software emulation"; \
+		$(QEMU) -cdrom $(ISO) -m 128M -boot order=d -net none; \
 	fi
+
+.PHONY: run-curses
+run-curses: $(ISO)
+	@echo "$(GREEN)[QEMU]$(RESET) Starting KFS-1 (terminal curses display)..."
+	@$(QEMU) -cdrom $(ISO) -m 128M -boot order=d -net none -display curses
 
 # Lancer en mode kernel direct (sans ISO, plus rapide pour le débogage)
 .PHONY: run-kernel
