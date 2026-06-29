@@ -60,7 +60,6 @@ else
     CC      := gcc
     LD_CC   := gcc
     HAS_CROSS := no
-    $(warning "No cross-compiler found, using host gcc with -m32")
 endif
 
 # NASM pour l'assembleur
@@ -136,31 +135,32 @@ ALL_OBJECTS := $(ASM_OBJECTS) $(C_OBJECTS)
 # Règles
 # =============================================================================
 
-# Règle par défaut: compiler tout et créer l'ISO
+# Règle par défaut: compiler le kernel
 .PHONY: all
-all: $(ISO)
+all: $(KERNEL)
 	@echo "$(GREEN)Build successful!$(RESET)"
-	@echo "$(CYAN)  Kernel: $(KERNEL)$(RESET)"
-	@echo "$(CYAN)  ISO:    $(ISO)$(RESET)"
-	@ls -lh $(KERNEL) $(ISO)
+	@ls -lh $(KERNEL)
+	@echo "$(CYAN)  → make run-kernel$(RESET)  pour lancer"
 
-# --- Créer l'ISO bootable ---
+# --- Créer l'ISO bootable (nécessite grub-pc-bin + mtools) ---
+.PHONY: iso
+iso: $(ISO)
+
 $(ISO): $(KERNEL)
 	@echo "$(YELLOW)[ISO]$(RESET) Creating bootable ISO..."
-	@if ! command -v mformat >/dev/null 2>&1; then \
-		echo "$(YELLOW)[ISO]$(RESET) Missing dependency: mformat (install package: mtools)"; \
+	@if [ ! -d /usr/lib/grub/i386-pc ]; then \
+		echo "$(RED)ERROR$(RESET) Missing grub-pc-bin (sudo apt install grub-pc-bin)"; \
 		exit 1; \
 	fi
-	@if [ ! -d /usr/lib/grub/i386-pc ]; then \
-		echo "$(YELLOW)[ISO]$(RESET) Missing GRUB BIOS modules: /usr/lib/grub/i386-pc"; \
-		echo "$(YELLOW)[ISO]$(RESET) Install package: grub-pc-bin"; \
+	@if ! command -v mformat >/dev/null 2>&1; then \
+		echo "$(RED)ERROR$(RESET) Missing mtools (sudo apt install mtools)"; \
 		exit 1; \
 	fi
 	@mkdir -p $(ISO_DIR)/boot/grub
 	@cp $(KERNEL) $(ISO_DIR)/boot/$(KERNEL)
 	@cp $(GRUB_DIR)/grub.cfg $(ISO_DIR)/boot/grub/grub.cfg
-	@$(GRUB_MKRESCUE) -o $(ISO) $(ISO_DIR)
-	@echo "$(GREEN)[ISO]$(RESET) $(ISO) created ($$(du -h $(ISO) | cut -f1))"
+	@$(GRUB_MKRESCUE) -o $(ISO) $(ISO_DIR) 2>/dev/null
+	@echo "$(GREEN)[ISO]$(RESET) $(ISO) ($$(du -h $(ISO) | cut -f1))"
 
 # --- Linker: lier tous les objets en kernel.bin ---
 $(KERNEL): $(ALL_OBJECTS) linker.ld
@@ -184,29 +184,25 @@ $(OBJ_DIR)/%.o: %.c
 # Cibles utilitaires
 # =============================================================================
 
-# Lancer dans QEMU (KVM si disponible, sinon TCG software)
+# Lancer via ISO (nécessite make iso d'abord)
 .PHONY: run
 run: $(ISO)
 	@echo "$(GREEN)[QEMU]$(RESET) Starting KFS-1 (ISO boot)..."
 	@if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then \
-		echo "$(CYAN)[QEMU]$(RESET) KVM enabled"; \
-		$(QEMU) -cdrom $(ISO) -enable-kvm -m 128M -boot order=d -net none || \
-		$(QEMU) -cdrom $(ISO) -m 128M -boot order=d -net none; \
+		$(QEMU) -cdrom $(ISO) -enable-kvm -m 128M -boot order=d -net none; \
 	else \
-		echo "$(YELLOW)[QEMU]$(RESET) KVM unavailable, using software emulation"; \
 		$(QEMU) -cdrom $(ISO) -m 128M -boot order=d -net none; \
 	fi
 
-.PHONY: run-curses
-run-curses: $(ISO)
-	@echo "$(GREEN)[QEMU]$(RESET) Starting KFS-1 (terminal curses display)..."
-	@$(QEMU) -cdrom $(ISO) -m 128M -boot order=d -net none -display curses
-
-# Lancer en mode kernel direct (sans ISO, plus rapide pour le débogage)
+# Lancer en mode kernel direct (recommandé pour le développement)
 .PHONY: run-kernel
 run-kernel: $(KERNEL)
-	@echo "$(GREEN)[QEMU]$(RESET) Starting kernel directly (no ISO)..."
-	@$(QEMU) -kernel $(KERNEL) -m 128M
+	@echo "$(GREEN)[QEMU]$(RESET) Starting kernel directly..."
+	@if [ -c /dev/kvm ] && [ -w /dev/kvm ]; then \
+		$(QEMU) -kernel $(KERNEL) -enable-kvm -m 128M; \
+	else \
+		$(QEMU) -kernel $(KERNEL) -m 128M; \
+	fi
 
 # Lancer avec débogage GDB (arrêt au démarrage, port 1234)
 .PHONY: debug
@@ -272,9 +268,10 @@ re: fclean all
 .PHONY: help
 help:
 	@echo "$(CYAN)KFS-1 Makefile targets:$(RESET)"
-	@echo "  $(GREEN)all$(RESET)         - Compile tout et créer l'ISO (défaut)"
-	@echo "  $(GREEN)run$(RESET)         - Lancer dans QEMU via ISO"
-	@echo "  $(GREEN)run-kernel$(RESET)  - Lancer le kernel directement dans QEMU"
+	@echo "  $(GREEN)all$(RESET)         - Compiler kernel.bin (défaut)"
+	@echo "  $(GREEN)iso$(RESET)         - Créer kfs1.iso bootable GRUB (nécessite grub-pc-bin + mtools)"
+	@echo "  $(GREEN)run-kernel$(RESET)  - Lancer le kernel directement dans QEMU (recommandé)"
+	@echo "  $(GREEN)run$(RESET)         - Lancer via ISO dans QEMU (nécessite make iso)"
 	@echo "  $(GREEN)debug$(RESET)       - Lancer avec GDB"
 	@echo "  $(GREEN)check$(RESET)       - Vérifier le binaire"
 	@echo "  $(GREEN)size$(RESET)        - Tailles des sections"
